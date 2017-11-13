@@ -12,9 +12,10 @@ import (
  Class file structure
 */
 type Class struct {
-	Magic        uint32
-	MinorVersion uint16
-	MajorVersion uint16
+	Magic            uint32
+	MinorVersion     uint16
+	MajorVersion     uint16
+	ConstantPoolSize uint16
 }
 
 var logger = logging.MustGetLogger("logger")
@@ -67,5 +68,10 @@ func (class *Class) Parse(content []byte, offset int) error {
 	if err != nil {
 		return err
 	}
+	return class.ParseConstantPool(content, pos)
+}
+
+func (class *Class) ParseConstantPool(content []byte, offset int) error {
+
 	return nil
 }
