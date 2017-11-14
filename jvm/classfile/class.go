@@ -17,6 +17,17 @@ type Class struct {
 	MajorVersion     uint16
 	ConstantPoolSize uint16
 	ConstantPool     [](*ConstantPoolInfo)
+	AccessFlags      uint16
+	ThisClass        uint16
+	SuperClass       uint16
+	InterfacesCount  uint16
+	Interfaces       [](*Interface)
+	FieldsCount      uint16
+	Fields           [](*Field)
+	MethodsCount     uint16
+	Methods          [](*Method)
+	AttributesCount  uint16
+	Attributes       [](*Attribute)
 }
 
 var logger = logging.MustGetLogger("logger")
@@ -96,6 +107,12 @@ func (class *Class) Parse(content []byte, offset int) error {
 
 	// parse constant pool items
 	pos, err = class.parseConstantPool(content, pos)
+
+	class.AccessFlags, err = util.ParseUint16(content[pos:])
+	pos += 2
+	if err != nil {
+		return err
+	}
 
 	return err
 }
