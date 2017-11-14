@@ -21,7 +21,7 @@ type Class struct {
 	ThisClass        uint16
 	SuperClass       uint16
 	InterfacesCount  uint16
-	Interfaces       [](*Interface)
+	Interfaces       []Interface
 	FieldsCount      uint16
 	Fields           [](*Field)
 	MethodsCount     uint16
@@ -114,6 +114,22 @@ func (class *Class) Parse(content []byte, offset int) error {
 		return err
 	}
 
+	class.ThisClass, err = util.ParseUint16(content[pos:])
+	pos += 2
+	if err != nil {
+		return err
+	}
+
+	class.SuperClass, err = util.ParseUint16(content[pos:])
+	pos += 2
+	if err != nil {
+		return err
+	}
+
+	pos, err = class.parseInterfaces(content, pos)
+	if err != nil {
+		return err
+	}
 	return err
 }
 
