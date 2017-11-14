@@ -56,7 +56,7 @@ type ConstantReference struct {
 	NameAndTypeIndex uint16
 }
 
-type ConstantMethodRef struct {
+type ConstantMethodref struct {
 	ConstantReference
 }
 
@@ -72,14 +72,49 @@ type ConstantStringInfo struct {
 	Index uint16
 }
 
+type ConstantIntegerInfo struct {
+	Value int32
+}
+
+type ConstantFloadInfo struct {
+	Value util.Numerical
+}
+
+type ConstantLongInfo struct {
+	Value int64
+}
+
+type ConstantDoubleInfo struct {
+	Value util.Numerical
+}
+
 type ConstantUtf8Info struct {
-	Length uint8
+	Length uint16
 	Info   string
+}
+
+type ConstantNameAndTypeInfo struct {
+	NameIndex       uint16
+	DescriptorIndex uint16
+}
+
+type ConstantMethodHandleInfo struct {
+	ReferenceKind  uint8
+	ReferenceIndex uint16
+}
+
+type ConstantMethodTypeInfo struct {
+	DescriptorIndex uint16
+}
+
+type ConstantInvokeDynamicInfo struct {
+	BootstrapMethodAttributeIndex uint16
+	NameAndTypeIndex              uint16
 }
 
 func (class *Class) Name(index uint16) (string, error) {
 
-	if index >= 1 && int(index) < len(class.ConstantPool) {
+	if index >= 1 && int(index) < len(class.ConstantPool) && class.ConstantPool[index] != nil {
 		if class.ConstantPool[index].Tag == CONSTANTUtf8 {
 			if value, ok := class.ConstantPool[index].Info.(string); ok {
 				return value, nil
@@ -99,4 +134,142 @@ func parseConstantClassInfo(content []byte) (interface{}, int, error) {
 	index, err := util.ParseUint16(content)
 	result.NameIndex = index
 	return result, 2, err
+}
+
+func parseConstantFieldrefInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantFieldref)
+	index, err := util.ParseUint16(content)
+
+	if err != nil {
+		return result, 2, err
+	}
+	result.ClassIndex = index
+	index, err = util.ParseUint16(content[2:])
+	result.NameAndTypeIndex = index
+	return result, 4, err
+}
+
+func parseConstantMethodrefInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantMethodref)
+	index, err := util.ParseUint16(content)
+
+	if err != nil {
+		return result, 2, err
+	}
+	result.ClassIndex = index
+	index, err = util.ParseUint16(content[2:])
+	result.NameAndTypeIndex = index
+	return result, 4, err
+}
+
+func parseConstantInterfaceMethodrefInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantInterfaceMethodref)
+	index, err := util.ParseUint16(content)
+
+	if err != nil {
+		return result, 2, err
+	}
+	result.ClassIndex = index
+	index, err = util.ParseUint16(content[2:])
+	result.NameAndTypeIndex = index
+	return result, 4, err
+}
+
+func parseConstantStringInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantStringInfo)
+	index, err := util.ParseUint16(content)
+	result.Index = index
+	return result, 2, err
+}
+
+func parseConstantIntegerInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantIntegerInfo)
+	value, err := util.ParseUint32(content)
+	result.Value = int32(value)
+	return result, 4, err
+}
+
+func parseConstantFloatInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantFloadInfo)
+	value, err := util.ParseFloat32(content)
+	result.Value = value
+	return result, 4, err
+}
+
+func parseConstantLongInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantLongInfo)
+	value, err := util.ParseUint64(content)
+	result.Value = int64(value)
+	return result, 8, err
+}
+
+func parseConstantDoubleInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantDoubleInfo)
+	value, err := util.ParseFloat64(content)
+	result.Value = value
+	return result, 8, err
+}
+
+func parseConstantNameAndTypeInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantNameAndTypeInfo)
+	index, err := util.ParseUint16(content)
+	result.NameIndex = index
+
+	if err != nil {
+		return result, 2, err
+	}
+	index, err = util.ParseUint16(content[2:])
+	result.DescriptorIndex = index
+	return result, 4, err
+}
+
+func parseConstantUtf8Info(content []byte) (interface{}, int, error) {
+	result := new(ConstantUtf8Info)
+	length, err := util.ParseUint16(content)
+	result.Length = length
+
+	if err != nil {
+		return result, 2, err
+	}
+
+	l := 2 + int(length)
+	if len(content) < l {
+		return result, 2, errors.New("not long enough to parse utf8 string")
+	}
+	result.Info = string(content[2:l])
+	return result, l, err
+}
+
+func parseConstantMethodHandleInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantMethodHandleInfo)
+	kind, err := util.ParseUint8(content)
+	result.ReferenceKind = kind
+
+	if err != nil {
+		return result, 1, err
+	}
+
+	index, err := util.ParseUint16(content[1:])
+	result.ReferenceIndex = index
+	return result, 1 + 2, err
+}
+
+func parseConstantMethodTypeInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantMethodTypeInfo)
+	index, err := util.ParseUint16(content)
+	result.DescriptorIndex = index
+	return result, 2, err
+}
+
+func parseConstantInvokeDynamicInfo(content []byte) (interface{}, int, error) {
+	result := new(ConstantInvokeDynamicInfo)
+	index, err := util.ParseUint16(content)
+	result.BootstrapMethodAttributeIndex = index
+
+	if err != nil {
+		return result, 2, err
+	}
+	index, err = util.ParseUint16(content[2:])
+	result.NameAndTypeIndex = index
+	return result, 4, err
 }

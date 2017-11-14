@@ -28,7 +28,20 @@ var format = logging.MustStringFormatter(
 type constantPoolHandler = func([]byte) (interface{}, int, error)
 
 var constantPoolMapper = map[uint8]constantPoolHandler{
-	CONSTANTClass: parseConstantClassInfo,
+	CONSTANTClass:              parseConstantClassInfo,
+	CONSTANTFieldref:           parseConstantFieldrefInfo,
+	CONSTANTMethodref:          parseConstantMethodrefInfo,
+	CONSTANTInterfaceMethodref: parseConstantInterfaceMethodrefInfo,
+	CONSTANTString:             parseConstantStringInfo,
+	CONSTANTInteger:            parseConstantIntegerInfo,
+	CONSTANTFloat:              parseConstantFloatInfo,
+	CONSTANTLong:               parseConstantLongInfo,
+	CONSTANTDouble:             parseConstantDoubleInfo,
+	CONSTANTNameAndType:        parseConstantNameAndTypeInfo,
+	CONSTANTUtf8:               parseConstantUtf8Info,
+	CONSTANTMethodHandle:       parseConstantMethodHandleInfo,
+	CONSTANTMethodType:         parseConstantMethodTypeInfo,
+	CONSTANTInvokeDynamic:      parseConstantInvokeDynamicInfo,
 }
 
 func init() {
@@ -100,29 +113,32 @@ func (class *Class) parseConstantPool(content []byte, offset int) (int, error) {
 	if size < 1 {
 		return pos, errors.New("constant pool size error")
 	}
-	logger.Debugf("creating constant pool with size %d", class.ConstantPoolSize-1)
-	class.ConstantPool = make([](*ConstantPoolInfo), class.ConstantPoolSize-1)
+	logger.Debugf("creating constant pool with size %d", class.ConstantPoolSize)
+	class.ConstantPool = make([](*ConstantPoolInfo), class.ConstantPoolSize)
 
 	i := uint16(1)
 	for i <= class.ConstantPoolSize-1 {
 		tag, err := util.ParseUint8(content[pos:])
 		if err != nil {
-			return pos + 2, err
+			return pos + 1, err
 		}
+		pos++
 
 		class.ConstantPool[i] = new(ConstantPoolInfo)
+		class.ConstantPool[i].Tag = tag
 
 		increment := uint16(1)
 		if tag == CONSTANTDouble || tag == CONSTANTLong {
 			increment = uint16(2)
 		}
 		if _, ok := constantPoolMapper[tag]; !ok {
-			return pos + offset, errors.New("Unable to find constant pool info handler")
+			return pos, errors.New("Unable to find constant pool info handler")
 		}
-		if info, offset, err := constantPoolMapper[tag](content[pos:]); err == nil {
+		if info, off, err := constantPoolMapper[tag](content[pos:]); err == nil {
+			logger.Infof("parsing %d", tag)
 			class.ConstantPool[i].Info = info
 			i += increment
-			pos += offset
+			pos += off
 		} else {
 			return pos, err
 		}
