@@ -1,9 +1,11 @@
 package classfile
 
-import "github.com/ianynchen/gvm/jvm/util"
+import (
+	"github.com/ianynchen/gvm/jvm/util"
+)
 
 type Interface struct {
-	Index uint16
+	Index uint16 `json:"index"`
 }
 
 func (class *Class) parseInterfaces(content []byte, pos int) (int, error) {

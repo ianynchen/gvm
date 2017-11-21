@@ -1,7 +1,9 @@
 package classfile
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"os"
 
 	"github.com/ianynchen/gvm/jvm/util"
@@ -68,6 +70,13 @@ NewClass creates a new Class object
 */
 func NewClass() *Class {
 	return new(Class)
+}
+
+func (class Class) Print(writers ...io.Writer) {
+	writer := io.MultiWriter(writers...)
+	encoder := json.NewEncoder(writer)
+	encoder.SetIndent("", "\t")
+	encoder.Encode(class)
 }
 
 /*
@@ -157,8 +166,7 @@ func (class *Class) parseConstantPool(content []byte, offset int) (int, error) {
 		}
 		pos++
 
-		class.ConstantPool[i] = new(ConstantPoolInfo)
-		class.ConstantPool[i].Tag = tag
+		class.ConstantPool[i], err = newConstantPool(tag)
 
 		increment := uint16(1)
 		if tag == CONSTANTDouble || tag == CONSTANTLong {
@@ -170,6 +178,7 @@ func (class *Class) parseConstantPool(content []byte, offset int) (int, error) {
 		if info, off, err := constantPoolMapper[tag](content[pos:]); err == nil {
 			logger.Infof("parsing %d", tag)
 			class.ConstantPool[i].Info = info
+			class.ConstantPool[i].Position = int(i)
 			i += increment
 			pos += off
 		} else {

@@ -7,7 +7,7 @@ type Field struct {
 	NameIndex       uint16
 	DescriptorIndex uint16
 	AttributesCount uint16
-	Attributes      []Attribute
+	Attributes      []*Attribute
 }
 
 func (class *Class) parseFieldInfo(content []byte, pos int) (int, error) {
@@ -42,8 +42,19 @@ func (class *Class) parseFieldInfo(content []byte, pos int) (int, error) {
 		if err != nil {
 			return pos, err
 		}
+		class.Fields[i].Attributes = make([]*Attribute, int(class.Fields[i].AttributesCount))
 
 		//TODO add attribute parsing
+		for j := 0; j < int(class.Fields[i].AttributesCount); j++ {
+			attribute, p, err := parseAttribute(content, pos)
+
+			if err == nil {
+				class.Fields[i].Attributes[j] = attribute
+				pos = p
+			} else {
+				return p, err
+			}
+		}
 	}
 	return pos, err
 }

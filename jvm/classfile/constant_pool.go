@@ -23,6 +23,23 @@ const (
 	CONSTANTInvokeDynamic      uint8 = 18
 )
 
+var typeMapping = map[uint8]string{
+	CONSTANTClass:              "Class Info",
+	CONSTANTFieldref:           "Fieldref Info",
+	CONSTANTDouble:             "Double Info",
+	CONSTANTFloat:              "Float Info",
+	CONSTANTInteger:            "Integer Info",
+	CONSTANTInterfaceMethodref: "InterfaceMethodref Info",
+	CONSTANTInvokeDynamic:      "InvokeDynamic Info",
+	CONSTANTLong:               "Long Info",
+	CONSTANTMethodHandle:       "MethodHandle Info",
+	CONSTANTMethodref:          "Methodref Info",
+	CONSTANTMethodType:         "MethodType info",
+	CONSTANTNameAndType:        "Name And Type Info",
+	CONSTANTString:             "String Info",
+	CONSTANTUtf8:               "UTF8 Info",
+}
+
 /*
 ConstantPoolInfo contains the information for each
 constant pool item. The first field is a uint8 tag that
@@ -31,8 +48,48 @@ the second field is an interface{} pointing to the actual constant
 pool item.
 */
 type ConstantPoolInfo struct {
-	Tag  uint8
-	Info interface{}
+	Tag      uint8       `json:"tag"`
+	Position int         `json:"position"`
+	Name     string      `json:"type"`
+	Info     interface{} `json:"info"`
+}
+
+func newConstantPool(tag uint8) (*ConstantPoolInfo, error) {
+	switch tag {
+	case CONSTANTClass:
+		fallthrough
+	case CONSTANTDouble:
+		fallthrough
+	case CONSTANTFieldref:
+		fallthrough
+	case CONSTANTFloat:
+		fallthrough
+	case CONSTANTInteger:
+		fallthrough
+	case CONSTANTInterfaceMethodref:
+		fallthrough
+	case CONSTANTInvokeDynamic:
+		fallthrough
+	case CONSTANTLong:
+		fallthrough
+	case CONSTANTMethodHandle:
+		fallthrough
+	case CONSTANTMethodref:
+		fallthrough
+	case CONSTANTMethodType:
+		fallthrough
+	case CONSTANTNameAndType:
+		fallthrough
+	case CONSTANTString:
+		fallthrough
+	case CONSTANTUtf8:
+		constantPoolInfo := new(ConstantPoolInfo)
+		constantPoolInfo.Name = typeMapping[tag]
+		constantPoolInfo.Tag = tag
+		return constantPoolInfo, nil
+	default:
+		return nil, errors.New("Unknown constant pool type")
+	}
 }
 
 /*
@@ -42,7 +99,7 @@ in the constant pool, and the value of that UTF8 string is the name
 of the class.
 */
 type ConstantClassInfo struct {
-	NameIndex uint16
+	NameIndex uint16 `json:"name_index"`
 }
 
 /*
@@ -52,8 +109,8 @@ two fields that are used to identify the position of the actual item.
 The ClassIndex and the NameAndTypeIndex
 */
 type ConstantReference struct {
-	ClassIndex       uint16
-	NameAndTypeIndex uint16
+	ClassIndex       uint16 `json:"class_index"`
+	NameAndTypeIndex uint16 `json:"name_and_type_index"`
 }
 
 type ConstantMethodref struct {
@@ -69,55 +126,55 @@ type ConstantInterfaceMethodref struct {
 }
 
 type ConstantStringInfo struct {
-	Index uint16
+	Index uint16 `json:"utf8_index"`
 }
 
 type ConstantIntegerInfo struct {
-	Value int32
+	Value int32 `json:"value"`
 }
 
-type ConstantFloadInfo struct {
-	Value util.Numerical
+type ConstantFloatInfo struct {
+	Value util.Numerical `json:"content"`
 }
 
 type ConstantLongInfo struct {
-	Value int64
+	Value int64 `json:"value"`
 }
 
 type ConstantDoubleInfo struct {
-	Value util.Numerical
+	Value util.Numerical `json:"content"`
 }
 
 type ConstantUtf8Info struct {
-	Length uint16
-	Info   string
+	Length uint16 `json:"length"`
+	Info   string `json:"content"`
 }
 
 type ConstantNameAndTypeInfo struct {
-	NameIndex       uint16
-	DescriptorIndex uint16
+	NameIndex       uint16 `json:"name_index"`
+	DescriptorIndex uint16 `json:"descriptor_index"`
 }
 
 type ConstantMethodHandleInfo struct {
-	ReferenceKind  uint8
-	ReferenceIndex uint16
+	ReferenceKind  uint8  `json:"reference_kind"`
+	ReferenceIndex uint16 `json:"reference_index"`
 }
 
 type ConstantMethodTypeInfo struct {
-	DescriptorIndex uint16
+	DescriptorIndex uint16 `json:"descriptor_index"`
 }
 
 type ConstantInvokeDynamicInfo struct {
-	BootstrapMethodAttributeIndex uint16
-	NameAndTypeIndex              uint16
+	BootstrapMethodAttributeIndex uint16 `json:"bootstrap_method_attribute_index"`
+	NameAndTypeIndex              uint16 `json:"name_and_type_index"`
 }
 
 func (class *Class) Name(index uint16) (string, error) {
 
 	if index >= 1 && int(index) < len(class.ConstantPool) && class.ConstantPool[index] != nil {
 		if class.ConstantPool[index].Tag == CONSTANTUtf8 {
-			if value, ok := class.ConstantPool[index].Info.(string); ok {
-				return value, nil
+			if value, ok := class.ConstantPool[index].Info.(*ConstantUtf8Info); ok {
+				return value.Info, nil
 			}
 			return "", errors.New("Invalid string for name")
 		}
@@ -190,7 +247,7 @@ func parseConstantIntegerInfo(content []byte) (interface{}, int, error) {
 }
 
 func parseConstantFloatInfo(content []byte) (interface{}, int, error) {
-	result := new(ConstantFloadInfo)
+	result := new(ConstantFloatInfo)
 	value, err := util.ParseFloat32(content)
 	result.Value = value
 	return result, 4, err
