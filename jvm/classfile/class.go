@@ -15,15 +15,15 @@ import (
 */
 type Class struct {
 	Magic            uint32
-	MinorVersion     uint16
 	MajorVersion     uint16
+	MinorVersion     uint16
 	ConstantPoolSize uint16
 	ConstantPool     [](*ConstantPoolInfo)
 	AccessFlags      uint16
 	ThisClass        uint16
 	SuperClass       uint16
 	InterfacesCount  uint16
-	Interfaces       []Interface
+	Interfaces       [](*Interface)
 	FieldsCount      uint16
 	Fields           [](*Field)
 	MethodsCount     uint16
@@ -75,7 +75,7 @@ func NewClass() *Class {
 func (class Class) Print(writers ...io.Writer) {
 	writer := io.MultiWriter(writers...)
 	encoder := json.NewEncoder(writer)
-	encoder.SetIndent("", "\t")
+	encoder.SetIndent("", "    ")
 	encoder.Encode(class)
 }
 
@@ -84,62 +84,42 @@ Parse parses Class info from []byte content
 */
 func (class *Class) Parse(content []byte, offset int) error {
 
+	context := parsingContext{content: content, offset: offset, err: nil}
+	context.parse(class.parseMagic)
+	context.parse(class.parseVersion)
+	context.parse(class.parseConstantPool)
+	context.parse(class.parseClassFlags)
+	context.parse(class.parseThisClass)
+	context.parse(class.parseSuperClass)
+	context.parse(class.parseInterfaces)
+	return context.err
+}
+
+func (class *Class) parseMagic(content []byte, offset int) (int, error) {
 	// parse the magic number, should always be 0xCAFEBABE
 	pos := offset
 	magic, err := util.ParseUint32(content[pos:])
-
-	if err != nil {
-		return err
-	}
 	class.Magic = magic
 	pos += 4
+	logger.Infof("magci number parsed: %X", class.Magic)
+	return pos, err
+}
 
-	// verify the magic number is correct
-	logger.Debugf("Magic is %x", class.Magic)
-	if class.Magic != 0xCAFEBABE {
-		return errors.New("Unexpected magic number")
-	}
+func (class *Class) parseVersion(content []byte, offset int) (int, error) {
 
-	// parse minor version
-	class.MinorVersion, err = util.ParseUint16(content[pos:])
-	pos += 2
+	var err error
+	class.MinorVersion, err = util.ParseUint16(content[offset:])
+	offset += 2
 	if err != nil {
-		return err
+		return offset, err
 	}
+	logger.Infof("minor version: %d", class.MinorVersion)
 
 	// parse major version
-	class.MajorVersion, err = util.ParseUint16(content[pos:])
-	pos += 2
-	if err != nil {
-		return err
-	}
-
-	// parse constant pool items
-	pos, err = class.parseConstantPool(content, pos)
-
-	class.AccessFlags, err = util.ParseUint16(content[pos:])
-	pos += 2
-	if err != nil {
-		return err
-	}
-
-	class.ThisClass, err = util.ParseUint16(content[pos:])
-	pos += 2
-	if err != nil {
-		return err
-	}
-
-	class.SuperClass, err = util.ParseUint16(content[pos:])
-	pos += 2
-	if err != nil {
-		return err
-	}
-
-	pos, err = class.parseInterfaces(content, pos)
-	if err != nil {
-		return err
-	}
-	return err
+	class.MajorVersion, err = util.ParseUint16(content[offset:])
+	logger.Infof("major version: %d", class.MajorVersion)
+	offset += 2
+	return offset, err
 }
 
 func (class *Class) parseConstantPool(content []byte, offset int) (int, error) {
@@ -176,7 +156,6 @@ func (class *Class) parseConstantPool(content []byte, offset int) (int, error) {
 			return pos, errors.New("Unable to find constant pool info handler")
 		}
 		if info, off, err := constantPoolMapper[tag](content[pos:]); err == nil {
-			logger.Infof("parsing %d", tag)
 			class.ConstantPool[i].Info = info
 			class.ConstantPool[i].Position = int(i)
 			i += increment
@@ -186,4 +165,28 @@ func (class *Class) parseConstantPool(content []byte, offset int) (int, error) {
 		}
 	}
 	return pos, nil
+}
+
+func (class *Class) parseClassFlags(content []byte, offset int) (int, error) {
+	var err error
+	class.AccessFlags, err = util.ParseUint16(content[offset:])
+	offset += 2
+	logger.Infof("access flag parsed: %v", class.AccessFlags)
+	return offset, err
+}
+
+func (class *Class) parseThisClass(content []byte, offset int) (int, error) {
+	var err error
+	class.ThisClass, err = util.ParseUint16(content[offset:])
+	offset += 2
+	logger.Infof("this class parsed: %v", class.ThisClass)
+	return offset, err
+}
+
+func (class *Class) parseSuperClass(content []byte, offset int) (int, error) {
+	var err error
+	class.SuperClass, err = util.ParseUint16(content[offset:])
+	offset += 2
+	logger.Infof("super class parsed: %v", class.SuperClass)
+	return offset, err
 }
